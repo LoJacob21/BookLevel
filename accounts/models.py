@@ -36,6 +36,12 @@ class AvatarPreset(models.Model):
 
 class User(AbstractUser):
     # email é o login; nickname é o handle público. Removemos username/nome real.
+    #
+    # PENDÊNCIA FUTURA (soft-delete): user.delete() real nunca vai funcionar para
+    # um usuário com histórico de XP — gamification.XPTransaction.user usa PROTECT
+    # e há trigger de imutabilidade no banco. A exclusão de conta deverá ser um
+    # soft-delete: is_active=False (campo já existe via AbstractUser) + rotina de
+    # anonimização de email/nickname/bio. Não implementar agora.
     username = None
     first_name = None
     last_name = None

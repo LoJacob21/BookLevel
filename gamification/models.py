@@ -26,7 +26,9 @@ class XPTransaction(models.Model):
         CORRECTION = "correction", "Correção"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="xp_transactions")
+    # PROTECT (não CASCADE): impede user.delete() quando há histórico de XP,
+    # com ProtectedError limpo no ORM — coerente com o ledger imutável.
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="xp_transactions")
     amount = models.IntegerField()  # pode ser negativo (correção)
     reason = models.CharField(max_length=24, choices=Reason.choices)
     source_type = models.CharField(max_length=40, blank=True)  # sem FK rígida (ledger)
