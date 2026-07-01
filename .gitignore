@@ -6,7 +6,6 @@ __pycache__/
 *$py.class
 
 # Virtual Environment
-venv/
 .venv/
 env/
 
@@ -22,6 +21,7 @@ staticfiles/
 # ==========================
 .env
 .env.*
+!.env.example
 
 # ==========================
 # IDEs
