@@ -228,13 +228,14 @@ Notas: imutável — sem UPDATE/DELETE. Recomenda-se reforçar com permissão/tr
 | code | text | NOT NULL, UNIQUE |
 | name | text | NOT NULL |
 | description | text | NULL |
-| criteria_type | text | NOT NULL  — enum: pages_total / books_total / genre_books / streak_days ... |
+| criteria_type | text | NOT NULL  — enum (MVP): pages_read / books_finished / streak_days (futuro: genre_books ...) |
 | criteria_value | integer | NOT NULL, CHECK (criteria_value > 0) |
 | is_repeatable | boolean | NOT NULL DEFAULT false |
 | event_id | uuid | NULL, FK → season_event(id)  — escopo opcional |
 | community_id | uuid | NULL, FK → community(id)  — escopo opcional |
 | valid_from | timestamptz | NULL |
 | valid_until | timestamptz | NULL |
+| xp_reward | integer | NOT NULL DEFAULT 0, CHECK (xp_reward >= 0) |
 
 ### user_quest  *(MVP — Onda 2)*
 | coluna | tipo | constraints |

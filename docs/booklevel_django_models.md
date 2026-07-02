@@ -467,10 +467,12 @@ class Quest(models.Model):
     community_id = models.UUIDField(null=True, blank=True)   # escopo opcional (communities.Community)
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateTimeField(null=True, blank=True)
+    xp_reward = models.PositiveIntegerField(default=0)
 
     class Meta:
         constraints = [
             models.CheckConstraint(condition=Q(criteria_value__gt=0), name="ck_quest_criteria_pos"),
+            models.CheckConstraint(condition=Q(xp_reward__gte=0), name="ck_quest_xp_reward_nonneg"),
         ]
 
 

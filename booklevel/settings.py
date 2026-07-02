@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'goals',
     'gamification',
     'timeline',
+    'quests',
 ]
 
 # Modelo de usuário customizado: email como login, nickname como handle público.
