@@ -37,6 +37,12 @@ booklevel/
 
 `INSTALLED_APPS`: registre `accounts` antes de rodar qualquer migração.
 
+Direção de dependência entre **services** (consolidada na Onda 2):
+`library → quests → gamification → timeline`. Helpers compartilhados de
+XP/timeline (`today_for`, `create_level_up_event`) vivem em
+`gamification.services`; `quests` importa `library.models` apenas para
+métricas lifetime, nunca `library.services` — sem ciclos.
+
 ---
 
 ## 2. Como cada construção relacional vira Django

@@ -7,14 +7,55 @@ transação de banco.
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
+from django.utils import timezone
+
+from timeline.models import TimelineEvent
 
 from .models import Level, Streak, StreakFreeze, XPTransaction
 
 User = get_user_model()
+
+
+def today_for(user) -> date:
+    """Dia atual no fuso IANA do usuário; fallback no fuso do projeto.
+
+    "Inválido" = user.timezone vazio (""), nome fora do banco IANA
+    (ZoneInfoNotFoundError/ValueError) ou tipo errado (TypeError).
+    """
+    try:
+        return timezone.now().astimezone(ZoneInfo(user.timezone)).date()
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
+        return timezone.localdate()
+
+
+def create_level_up_event(user, grant_result: "GrantResult", event_date: date) -> None:
+    """TimelineEvent de LEVEL_UP.
+
+    Princípio: level-up gera evento na timeline onde quer que o XP tenha
+    sido concedido — todo caller de grant_xp que detectar level_changed
+    deve usar este helper.
+    """
+    new_title = (
+        Level.objects.filter(level_number=grant_result.new_level)
+        .values_list("title", flat=True)
+        .first()
+    )
+    TimelineEvent.objects.create(
+        user=user,
+        type=TimelineEvent.Type.LEVEL_UP,
+        event_date=event_date,
+        visibility=TimelineEvent.Visibility.PRIVATE,
+        payload={
+            "old_level": grant_result.old_level,
+            "new_level": grant_result.new_level,
+            "title": new_title,
+        },
+    )
 
 
 @dataclass

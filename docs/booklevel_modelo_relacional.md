@@ -453,3 +453,4 @@ CREATE INDEX ix_book_external ON book (external_id);
 2. **Níveis**: tabela `level` **seedada a partir de uma fórmula**, editável via Django Admin para balanceamento sem deploy.
 3. **Vínculos de ledger/log** (`xp_transaction`, `timeline_event`): `source_type` + `source_id` **sem FK rígida**, para acomodar novas origens sem migração de schema.
 4. **Escopos futuros** (`event_id`, `community_id` em quest/achievement): colunas nuláveis já presentes; ativar um evento sazonal ou desafio de comunidade é inserir linhas, não alterar schema.
+5. **Direção de dependência entre services** (consolidada na Onda 2): `library → quests → gamification → timeline`. Helpers compartilhados de XP/timeline vivem em `gamification.services`; `quests` lê `library.models` (métricas lifetime) mas nunca importa `library.services` — sem ciclos.
