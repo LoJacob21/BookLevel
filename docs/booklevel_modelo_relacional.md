@@ -371,6 +371,21 @@ Notas: no máximo um ativo por user+quest — ver índice único parcial. Quest 
 
 ---
 
+## 10. Infraestrutura de API  *(Onda 3)*
+
+Não é entidade de domínio — suporte técnico da API REST (auth por bearer token).
+
+### api_token  *(Onda 3)*
+| coluna | tipo | constraints |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | NOT NULL, FK → user(id) ON DELETE CASCADE |
+| key | varchar(64) | NOT NULL, UNIQUE — 64 hex (`secrets.token_hex(32)`) |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| last_used_at | timestamptz | NULL |
+
+---
+
 ## Constraints que materializam invariantes
 
 Resumo das regras de domínio que viram garantias do banco (não dependem só da aplicação):

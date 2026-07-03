@@ -1,8 +1,14 @@
+import secrets
 import uuid
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.db.models.functions import Lower
+
+
+def generate_token_key() -> str:
+    # Função de módulo (não lambda) para ser serializável na migração.
+    return secrets.token_hex(32)  # 64 chars hex
 
 
 class UserManager(BaseUserManager):
@@ -70,3 +76,20 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.nickname
+
+
+class ApiToken(models.Model):
+    """Token opaco de API (bearer). Um user pode ter vários (um por device).
+
+    A revogação em massa (exclusão de conta) deleta as linhas; o token em si
+    nunca é regenerado — logout deleta e login cria outro.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="api_tokens")
+    key = models.CharField(max_length=64, unique=True, default=generate_token_key, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"token de {self.user_id} ({self.key[:8]}…)"

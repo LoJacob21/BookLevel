@@ -24,7 +24,7 @@ Um app por contexto do domínio — mantém o mapeamento domínio→código limp
 
 ```
 booklevel/
-  accounts/        # User, AvatarPreset
+  accounts/        # User, AvatarPreset, ApiToken (infra da API)
   catalog/         # Author, Genre, Book
   library/         # UserBook, ReadingSession, DiaryEntry, Review, Quote, FavoriteCharacter
   goals/           # Goal
@@ -130,6 +130,26 @@ class User(AbstractUser):
 ```
 
 Notas: `current_level` é `PositiveSmallIntegerField` simples (não FK para `Level`), de propósito — é um cache, e mantê-lo como número evita acoplamento circular entre apps; o título do nível busca-se em `Level` quando necessário.
+
+```python
+def generate_token_key() -> str:
+    # Função de módulo (não lambda) para ser serializável na migração.
+    return secrets.token_hex(32)  # 64 chars hex
+
+
+class ApiToken(models.Model):
+    """Infraestrutura da API (Onda 3), não domínio: token opaco (bearer).
+
+    Um user pode ter vários (um por device). Logout deleta o token da
+    request; exclusão de conta deleta todos.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="api_tokens")
+    key = models.CharField(max_length=64, unique=True, default=generate_token_key, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+```
 
 ---
 
