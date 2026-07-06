@@ -11,6 +11,8 @@ from ninja import NinjaAPI
 from api.auth import TokenAuth
 
 from .accounts import router as accounts_router
+from .catalog import router as catalog_router
+from .library import router as library_router
 
 api = NinjaAPI(
     title="BookLevel API",
@@ -31,3 +33,5 @@ def validation_error_to_400(request, exc: ValidationError):
 
 
 api.add_router("/auth", accounts_router)
+api.add_router("/books", catalog_router)
+api.add_router("/library", library_router)

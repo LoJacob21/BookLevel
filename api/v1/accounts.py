@@ -78,12 +78,15 @@ def register(request, payload: RegisterIn):
     if User.objects.filter(nickname__iexact=payload.nickname).exists():
         raise HttpError(400, "Este nickname já está em uso.")
     try:
-        user = User.objects.create_user(
-            email=payload.email,
-            nickname=payload.nickname,
-            password=payload.password,
-            timezone=payload.timezone,
-        )
+        # atomic DENTRO do try: o savepoint isola o IntegrityError e não
+        # envenena a transação externa (relevante nos testes com TestCase).
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=payload.email,
+                nickname=payload.nickname,
+                password=payload.password,
+                timezone=payload.timezone,
+            )
     except IntegrityError:
         raise HttpError(400, "Email ou nickname já está em uso.")
     return 201, user
