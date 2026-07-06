@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import sys
 from pathlib import Path
 
 import environ
@@ -102,6 +103,20 @@ WSGI_APPLICATION = 'booklevel.wsgi.application'
 DATABASES = {
     'default': env.db('DATABASE_URL'),
 }
+
+
+# Celery
+# Broker e result backend no mesmo Redis local (docker-compose.yml na raiz),
+# em DBs distintos. Em produção, sobrescrever via variáveis de ambiente.
+
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://localhost:6379/1')
+
+if 'test' in sys.argv:
+    # Suíte roda sem broker: tasks executam inline e exceptions aparecem
+    # no teste em vez de serem engolidas.
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 
 
 # Password validation
