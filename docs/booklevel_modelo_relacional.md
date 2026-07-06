@@ -63,11 +63,12 @@ Notas: `total_xp` e `current_level` são projeções materializadas do ledger (v
 | coluna | tipo | constraints |
 |---|---|---|
 | id | uuid | PK |
-| external_id | text | NULL, UNIQUE  — id no Google Books / Open Library |
+| external_id | text | NULL — id na fonte externa; UNIQUE parcial (source, external_id) WHERE external_id IS NOT NULL (livro 100% local fica fora) |
 | source | text | NOT NULL DEFAULT 'manual'  — enum: google_books / open_library / manual |
+| isbn | text | NULL, UNIQUE parcial WHERE isbn IS NOT NULL — sempre ISBN-13 normalizado (só dígitos; ISBN-10 convertido antes de persistir) |
 | title | text | NOT NULL |
 | subtitle | text | NULL |
-| total_pages | integer | NOT NULL, CHECK (total_pages > 0) |
+| total_pages | integer | NOT NULL, CHECK (total_pages >= 0) — 0 = importado sem contagem na fonte, aguardando curadoria (sessões bloqueadas pela aplicação enquanto 0) |
 | cover_url | text | NULL |
 | published_year | smallint | NULL |
 
@@ -395,7 +396,7 @@ Resumo das regras de domínio que viram garantias do banco (não dependem só da
 | Um livro por usuário | `UNIQUE (user_id, book_id)` em `user_book` |
 | Uma resenha por leitura | `UNIQUE (user_book_id)` em `review` |
 | Sessão não reduz progresso | `CHECK (end_page >= start_page)` em `reading_session` |
-| Sem duplicação de livro do catálogo | `UNIQUE (external_id)` em `book` |
+| Sem duplicação de livro do catálogo | `UNIQUE` parcial em `book (isbn)` e em `book (source, external_id)` — dedup em cascata: ISBN-13 → (source, external_id) |
 | Sem duplicação de autor/gênero | `UNIQUE (normalized_name)` |
 | XP imutável | sem UPDATE/DELETE (permissão/trigger) |
 | Conquista única por usuário | `UNIQUE (user_id, achievement_id)` |
@@ -456,8 +457,9 @@ CREATE INDEX ix_timeline_user_created ON timeline_event (user_id, created_at DES
 -- Quests ativas do usuário
 CREATE INDEX ix_user_quest_user_status ON user_quest (user_id, status);
 
--- Resolução de livro na importação
-CREATE INDEX ix_book_external ON book (external_id);
+-- Resolução de livro na importação (índices únicos parciais — dedup em cascata)
+CREATE UNIQUE INDEX uq_book_isbn ON book (isbn) WHERE isbn IS NOT NULL;
+CREATE UNIQUE INDEX uq_book_source_external ON book (source, external_id) WHERE external_id IS NOT NULL;
 ```
 
 ---
