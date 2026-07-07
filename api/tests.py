@@ -7,6 +7,7 @@ integração no ledger para provar que a casca chama o service de verdade.
 
 import json
 from datetime import date
+from unittest import mock
 
 from django.test import TestCase
 
@@ -280,4 +281,85 @@ class LibraryBehaviorTests(ApiTestCase):
                 reason=XPTransaction.Reason.BOOK_COMPLETED
             ).count(),
             1,
+        )
+
+
+@mock.patch("api.v1.catalog.fetch_and_import_book")
+class CatalogSearchTests(ApiTestCase):
+    """Bloco C: contrato do GET /books com o gatilho de busca externa.
+
+    A task é mockada na namespace do endpoint (api.v1.catalog): aqui só
+    interessa SE e COMO o disparo acontece — a importação real tem suíte
+    própria em catalog/tests.py.
+    """
+
+    def setUp(self):
+        self.token = ApiToken.objects.create(user=make_user()).key
+
+    def test_local_hit_does_not_trigger_external_search(self, mock_task):
+        Book.objects.create(title="O Hobbit", total_pages=310)
+
+        response = self.api_get("/books?q=Hobbit", token=self.token)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertFalse(body["external_search_triggered"])
+        self.assertEqual(body["count"], 1)
+        mock_task.delay.assert_not_called()
+
+    def test_local_miss_triggers_task_and_returns_flag_true(self, mock_task):
+        response = self.api_get("/books?q=inexistente", token=self.token)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body["external_search_triggered"])
+        self.assertEqual(body["items"], [])
+        self.assertEqual(body["count"], 0)
+        mock_task.delay.assert_called_once_with("inexistente")
+
+    def test_empty_or_whitespace_query_never_triggers(self, mock_task):
+        for path in ("/books", "/books?q=", "/books?q=%20%20%20"):
+            response = self.api_get(path, token=self.token)
+            self.assertEqual(response.status_code, 200, path)
+            self.assertFalse(response.json()["external_search_triggered"], path)
+        mock_task.delay.assert_not_called()
+
+    def test_broker_failure_returns_200_with_flag_false_and_warning(self, mock_task):
+        mock_task.delay.side_effect = Exception("broker fora do ar")
+
+        with self.assertLogs("api.v1.catalog", level="WARNING"):
+            response = self.api_get("/books?q=inexistente", token=self.token)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["external_search_triggered"])
+
+    def test_page_zero_is_422(self, mock_task):
+        response = self.api_get("/books?q=x&page=0", token=self.token)
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_pagination_is_deterministic_with_duplicate_titles(self, mock_task):
+        # 25 títulos idênticos: sem desempate por id, a composição das
+        # páginas seria indefinida (itens repetidos/omitidos entre páginas).
+        created_ids = {
+            str(Book.objects.create(title="Mesmo Título", total_pages=100).id)
+            for _ in range(25)
+        }
+
+        seen_ids = []
+        for page in (1, 2):
+            body = self.api_get(f"/books?q=Mesmo&page={page}", token=self.token).json()
+            self.assertEqual(body["count"], 25)
+            seen_ids.extend(item["id"] for item in body["items"])
+
+        self.assertEqual(len(seen_ids), 25)  # 20 + 5, nada omitido
+        self.assertEqual(len(set(seen_ids)), 25)  # nada repetido
+        self.assertEqual(set(seen_ids), created_ids)
+        mock_task.delay.assert_not_called()
+
+    def test_response_envelope_has_exactly_the_contract_keys(self, mock_task):
+        response = self.api_get("/books", token=self.token)
+
+        self.assertEqual(
+            set(response.json()), {"items", "count", "external_search_triggered"}
         )
